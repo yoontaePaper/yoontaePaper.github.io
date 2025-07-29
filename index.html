@@ -29,7 +29,7 @@
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
-  
+
     <div class="container mx-auto p-4 md:p-8">
         <header class="mb-8">
             <div class="flex justify-between items-start">
@@ -304,9 +304,11 @@
         // --- LIST.JS INITIALIZATION ---
         const options = {
             valueNames: [ 'title', 'journal', 'year', 'authors', 'status', 'memo-text', { name: 'tags-text', attr: 'data-tags' }, { name: 'id', attr: 'data-id' }, { name: 'importance', attr: 'data-importance' } ],
-            item: (values) => renderPaperItem(values)
+            // FIX: Add a minimal item template to prevent initialization error when the list is empty on page load.
+            // This template is just a placeholder and will be overwritten by the manual render in `loadPapersFromFirestore`.
+            item: '<li><h3 class="title"></h3></li>'
         };
-        const paperList = new List('paper-list-container', options, []);
+        const paperList = new List('paper-list-container', options);
 
         // --- AUTHENTICATION ---
         const provider = new GoogleAuthProvider();
@@ -351,7 +353,9 @@
                     papersUnsubscribe();
                 }
                 papers = [];
-                paperList.clear();
+                // Since we manually render, just clear the HTML and update UI
+                dom.paperListUl.innerHTML = '';
+                paperList.reIndex();
                 updateUI();
             }
         });
@@ -363,6 +367,7 @@
             const papersCollection = collection(db, `artifacts/${appId}/users/${userId}/papers`);
             
             papersUnsubscribe = onSnapshot(papersCollection, (snapshot) => {
+                // 1. Get the latest data from Firestore and map it to our local 'papers' array
                 papers = snapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data(),
@@ -370,9 +375,16 @@
                     'memo-text': doc.data().memo,
                 }));
                 
-                paperList.clear();
-                paperList.add(papers, () => paperList.reIndex());
+                // 2. Manually generate the HTML for all papers using the render function
+                const listHtml = papers.map(p => renderPaperItem(p)).join('');
+                dom.paperListUl.innerHTML = listHtml;
+
+                // 3. Tell List.js to re-scan the DOM and update its internal index
+                paperList.reIndex();
+                
+                // 4. Update filters, sorting, and visibility of the "no papers" message
                 updateUI();
+
             }, (error) => {
                 console.error("Error fetching papers from Firestore:", error);
             });
@@ -490,11 +502,12 @@
             }
             const paperId = dom.paperIdInput.value;
             const isUpdate = !!paperId;
+            const yearValue = document.getElementById('year').value;
 
             const paperDataFromForm = {
                 title: document.getElementById('title').value,
                 journal: document.getElementById('journal').value,
-                year: document.getElementById('year').value,
+                year: yearValue ? parseInt(yearValue, 10) : null,
                 authors: document.getElementById('authors').value,
                 tags: document.getElementById('tags').value,
                 link: document.getElementById('link').value,
@@ -506,6 +519,10 @@
                 if (isUpdate) {
                     const paperDocRef = doc(db, `artifacts/${appId}/users/${currentUserId}/papers`, paperId);
                     const existingPaper = papers.find(p => p.id === paperId);
+                    if (!existingPaper) {
+                        showToast('errorUpdate', 'error');
+                        return;
+                    }
                     await updateDoc(paperDocRef, { ...paperDataFromForm, memo: existingPaper.memo || '' });
                     showToast('toastPaperUpdated');
                 } else {
