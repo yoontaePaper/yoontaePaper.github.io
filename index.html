@@ -588,9 +588,27 @@
         }
 
         // --- RENDER FUNCTIONS ---
+        /**
+         * [개선된 함수] XSS 공격 방지를 위해 모든 사용자 입력 값을 DOMPurify로 sanitize합니다.
+         * 제목, 저널, 저자, 태그 등 모든 텍스트 기반 데이터는 HTML로 렌더링되기 전에
+         * 이 함수를 통해 안전하게 처리됩니다.
+         */
         function renderPaperItem(values) {
+            // Sanitize all user-provided content before rendering to prevent XSS.
+            const sanitizedTitle = DOMPurify.sanitize(values.title || '');
+            const sanitizedJournal = DOMPurify.sanitize(values.journal || 'N/A');
+            const sanitizedYear = DOMPurify.sanitize(String(values.year) || 'N/A');
+            const sanitizedAuthors = DOMPurify.sanitize(values.authors || '');
+
             const statusColor = statusColors[values.status] || 'bg-gray-100 text-gray-800';
-            const tagsHtml = (values['tags-text'] || '').split(',').map(tag => tag.trim() ? `<span class="tag bg-gray-200 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${tag.trim()}</span>` : '').join('');
+            
+            // Sanitize each tag individually.
+            const tagsHtml = (values['tags-text'] || '').split(',').map(tag => {
+                const trimmedTag = tag.trim();
+                if (!trimmedTag) return '';
+                const sanitizedTag = DOMPurify.sanitize(trimmedTag);
+                return `<span class="tag bg-gray-200 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${sanitizedTag}</span>`;
+            }).join('');
             
             const importance = parseInt(values.importance, 10) || 3;
             const importanceTitle = translations[currentLang].importanceTitle.replace('{level}', importance);
@@ -614,9 +632,9 @@
                         <div class="flex-grow">
                             <div class="flex justify-between items-start gap-2">
                                 <div class="flex-grow">
-                                    <div class="flex items-center gap-3 mb-1">${starsHtml}<h3 class="title text-lg font-bold text-indigo-700">${values.title}</h3>${incompleteIndicator}</div>
-                                    <p class="journal text-gray-600 font-medium">${values.journal || 'N/A'} (<span class="year">${values.year || 'N/A'}</span>)</p>
-                                    <p class="authors text-sm text-gray-500 italic">${values.authors || ''}</p>
+                                    <div class="flex items-center gap-3 mb-1">${starsHtml}<h3 class="title text-lg font-bold text-indigo-700">${sanitizedTitle}</h3>${incompleteIndicator}</div>
+                                    <p class="journal text-gray-600 font-medium">${sanitizedJournal} (<span class="year">${sanitizedYear}</span>)</p>
+                                    <p class="authors text-sm text-gray-500 italic">${sanitizedAuthors}</p>
                                 </div>
                                 <div class="flex flex-col items-end gap-2 flex-shrink-0">
                                     <button class="edit-btn text-gray-400 hover:text-indigo-600" title="${translations[currentLang].edit}"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>
