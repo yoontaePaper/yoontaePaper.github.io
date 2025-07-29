@@ -298,6 +298,7 @@
     </div>
 
 
+    <script src="firebase-config.js"></script>
     <script type="module">
         // Firebase SDK imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -326,19 +327,11 @@
             setLogLevel
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase configuration
-        const firebaseConfig = typeof __firebase_config !== 'undefined'
-            ? JSON.parse(__firebase_config)
-            : {
-                // Fallback config, in case the environment variable is not set.
-                apiKey: "AIzaSyCfn0BpuqPHN9ynZ6BiGEoOBgaif7FO690",
-                authDomain: "paper-saver-df418.firebaseapp.com",
-                projectId: "paper-saver-df418",
-                storageBucket: "paper-saver-df418.firebasestorage.app",
-                messagingSenderId: "23245752480",
-                appId: "1:23245752480:web:48d71705302c2b703ea1c5",
-                measurementId: "G-TL12FY1091"
-            };
+        // Firebase configuration loaded from `firebase-config.js`
+        if (typeof window.__firebase_config === 'undefined') {
+            throw new Error('Firebase configuration not found. Please create `firebase-config.js` based on `firebase-config-example.js`.');
+        }
+        const firebaseConfig = window.__firebase_config;
         
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
